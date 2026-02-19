@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charity Auction – Live Winners</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,400&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --gold: #f59e0b;
+            --gold-light: #fde68a;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --border: #334155;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* ── Animated background particles ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(245, 158, 11, 0.05) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 960px;
+            padding: 24px;
+            position: relative;
+        }
+
+        /* ── Loading state ── */
+        #loading {
+            text-align: center;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* ── Empty state ── */
+        #no-winners {
+            display: none;
+            text-align: center;
+        }
+        #no-winners h2 { font-size: 2.5rem; font-weight: 900; margin-bottom: 12px; }
+        #no-winners p { color: var(--text-muted); font-size: 1.1rem; }
+
+        /* ── Main card ── */
+        #slideshow-container { display: none; }
+
+        .winner-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f1f38 100%);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 52px 56px;
+            text-align: center;
+            box-shadow:
+                0 0 0 1px rgba(245, 158, 11, 0.1),
+                0 40px 80px -20px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Gold shimmer line at top */
+        .winner-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        }
+
+        /* ── Slide animation ── */
+        .slide-in {
+            animation: slideIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .slide-out {
+            animation: slideOut 0.4s ease-in forwards;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(28px) scale(0.98); }
+            to   { opacity: 1; transform: translateY(0)   scale(1); }
+        }
+        @keyframes slideOut {
+            from { opacity: 1; transform: translateY(0); }
+            to   { opacity: 0; transform: translateY(-20px); }
+        }
+
+        /* ── Badge ── */
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--gold), #d97706);
+            color: #000;
+            font-weight: 900;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 8px 24px;
+            border-radius: 999px;
+            margin-bottom: 28px;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        /* ── Winner name ── */
+        #winner-name {
+            font-size: clamp(3rem, 8vw, 5.5rem);
+            font-weight: 900;
+            line-height: 1.05;
+            background: linear-gradient(135deg, #fff 40%, var(--gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+
+        /* ── Ticket ── */
+        .ticket-row {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 36px;
+        }
+        .ticket-row span {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin-bottom: 36px;
+        }
+
+        /* ── Prize & donor grid ── */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            align-items: center;
+        }
+        @media (max-width: 600px) {
+            .bottom-grid { grid-template-columns: 1fr; text-align: center; }
+            .winner-card { padding: 36px 24px; }
+        }
+
+        .section-label {
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        #prize-desc {
+            font-size: clamp(1.6rem, 4vw, 2.4rem);
+            font-weight: 700;
+            line-height: 1.25;
+            text-align: left;
+        }
+        @media (max-width: 600px) { #prize-desc { text-align: center; } }
+
+        /* ── Donor box ── */
+        .donor-col {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        @media (max-width: 600px) { .donor-col { align-items: center; } }
+
+        .logo-box {
+            background: white;
+            border-radius: 14px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 140px;
+            min-height: 80px;
+            max-width: 200px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .logo-box img {
+            max-width: 160px;
+            max-height: 90px;
+            object-fit: contain;
+            display: block;
+        }
+        .logo-box.hidden { display: none; }
+
+        #donor-name {
+            font-size: 1rem;
+            font-style: italic;
+            color: var(--text-muted);
+            text-align: right;
+            max-width: 200px;
+        }
+        @media (max-width: 600px) { #donor-name { text-align: center; } }
+
+        /* ── Progress bar ── */
+        .progress-wrap {
+            height: 3px;
+            background: var(--border);
+            border-radius: 999px;
+            margin-top: 32px;
+            overflow: hidden;
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--gold), #fde68a);
+            border-radius: 999px;
+            transition: width linear;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            font-size: 0.7rem;
+            color: #475569;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        #slide-counter { font-weight: 700; }
+
+        /* ── Dot indicators ── */
+        #dots {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+            max-width: 300px;
+        }
+        .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background 0.3s, transform 0.3s;
+        }
+        .dot.active {
+            background: var(--gold);
+            transform: scale(1.4);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+
+    <div id="loading">⏳ Connecting to live data…</div>
+
+    <div id="no-winners">
+        <h2>🎟️ Auction in Progress</h2>
+        <p>Winner announcements will appear here as tickets are drawn!</p>
+    </div>
+
+    <div id="slideshow-container">
+        <div class="winner-card" id="content">
+            <div class="badge">🏆 &nbsp;Winner Announced!</div>
+
+            <h1 id="winner-name">---</h1>
+            <p class="ticket-row">Winning Ticket: <span id="ticket-num">---</span></p>
+
+            <div class="divider"></div>
+
+            <div class="bottom-grid">
+                <div>
+                    <p class="section-label">Prize Won</p>
+                    <h2 id="prize-desc">---</h2>
+                </div>
+                <div class="donor-col">
+                    <p class="section-label">Generously Donated By</p>
+                    <div class="logo-box" id="logo-box">
+                        <img id="donor-logo" src="" alt="Donor Logo">
+                    </div>
+                    <p id="donor-name">---</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-wrap">
+            <div id="progress-bar"></div>
+        </div>
+
+        <div class="footer">
+            <span>Last synced: <span id="last-update">---</span></span>
+            <div id="dots"></div>
+            <span id="slide-counter"></span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ─────────────────────────────────────────────────────────────
+    //  CONFIGURATION — only edit these two values
+    // ─────────────────────────────────────────────────────────────
+
+    // Your Google Sheet export URL (sheet must be "Anyone with link can view")
+    const SHEET_CSV_URL =
+        'https://docs.google.com/spreadsheets/d/147L5jnNqzIaJqi3tqy1btEc-j3RujeW_alECSm8xhw8/export?format=csv&gid=0';
+
+    const ROTATION_SPEED_MS = 8000;   // ms between slides
+    const REFRESH_RATE_MS   = 30000;  // ms between data re-fetches
+
+    // ─────────────────────────────────────────────────────────────
+
+    let winners      = [];
+    let currentIndex = 0;
+    let progressTimer, progressInterval;
+    let isAnimating  = false;
+
+    // Convert a Google Drive share link to a direct image URL
+    function driveToDirectUrl(url) {
+        if (!url) return '';
+        // Handle /file/d/ID/view or ?id=ID formats
+        let m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+        if (!m) m = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+        if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+        return url; // already a direct URL — return as-is
+    }
+
+    // Robust CSV parser — handles quoted fields containing commas & newlines
+    function parseCSVLine(line) {
+        const result = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+                if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }  // escaped quote
+                else inQuotes = !inQuotes;
+            } else if (ch === ',' && !inQuotes) {
+                result.push(cur.trim());
+                cur = '';
+            } else {
+                cur += ch;
+            }
+        }
+        result.push(cur.trim());
+        return result;
+    }
+
+    async function fetchSheetData() {
+        try {
+            const res  = await fetch(`${SHEET_CSV_URL}&_=${Date.now()}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const text = await res.text();
+            processCSV(text);
+            document.getElementById('last-update').textContent =
+                new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } catch (err) {
+            console.error('Fetch error:', err);
+            // Don't wipe existing data on a transient network error
+        }
+    }
+
+    function processCSV(csvText) {
+        const lines = csvText.split(/\r?\n/);
+        const found = [];
+
+        // Row 1 (index 0) is the header — skip it
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const cols = parseCSVLine(lines[i]);
+
+            // Column map (0-indexed):
+            // 0 = Donor | 1 = Logo URL | 2 = Auction Type | 3 = Prize | 4 = Winning Ticket | 5 = Winner
+            const donor      = cols[0] || '';
+            const logoRaw    = cols[1] || '';
+            const prize      = cols[3] || '';
+            const ticket     = cols[4] || '';
+            const winnerCell = cols[5] || '';
+
+            // Only show rows where col F is filled in AND is not "Unclaimed"
+            const isWinner = winnerCell !== '' && winnerCell.toLowerCase() !== 'unclaimed';
+            const hasTicket = ticket !== '';
+
+            if (isWinner && hasTicket) {
+                found.push({
+                    winner: winnerCell,
+                    ticket,
+                    prize,
+                    donor,
+                    logo: driveToDirectUrl(logoRaw)
+                });
+            }
+        }
+
+        // Preserve current position if the list is just longer (new winners added)
+        const prevLen = winners.length;
+        winners = found;
+
+        if (winners.length === 0) {
+            showState('empty');
+        } else {
+            showState('slideshow');
+            // If this is the first load, kick off from slide 0
+            if (prevLen === 0) {
+                currentIndex = 0;
+                renderSlide(currentIndex, false);
+                startProgress();
+            }
+            buildDots();
+        }
+    }
+
+    function showState(state) {
+        document.getElementById('loading').style.display          = 'none';
+        document.getElementById('no-winners').style.display       = state === 'empty'     ? 'block' : 'none';
+        document.getElementById('slideshow-container').style.display = state === 'slideshow' ? 'block' : 'none';
+    }
+
+    function renderSlide(index, animate = true) {
+        if (!winners[index]) return;
+        const d       = winners[index];
+        const content = document.getElementById('content');
+
+        if (animate) {
+            if (isAnimating) return;
+            isAnimating = true;
+            content.classList.add('slide-out');
+            setTimeout(() => {
+                fillSlide(d);
+                content.classList.remove('slide-out');
+                content.classList.add('slide-in');
+                content.addEventListener('animationend', () => {
+                    content.classList.remove('slide-in');
+                    isAnimating = false;
+                }, { once: true });
+            }, 400);
+        } else {
+            fillSlide(d);
+            content.classList.add('slide-in');
+            content.addEventListener('animationend', () => content.classList.remove('slide-in'), { once: true });
+        }
+
+        // Dot indicators
+        document.querySelectorAll('.dot').forEach((dot, i) => {
+            dot.classList.toggle('active', i === index);
+        });
+        document.getElementById('slide-counter').textContent =
+            `${index + 1} / ${winners.length}`;
+    }
+
+    function fillSlide(d) {
+        document.getElementById('winner-name').textContent = d.winner;
+        document.getElementById('ticket-num').textContent  = d.ticket;
+        document.getElementById('prize-desc').textContent  = d.prize;
+        document.getElementById('donor-name').textContent  = d.donor;
+
+        const logoBox = document.getElementById('logo-box');
+        const logoImg = document.getElementById('donor-logo');
+
+        if (d.logo && (d.logo.startsWith('http://') || d.logo.startsWith('https://'))) {
+            logoImg.src = d.logo;
+            logoImg.onerror = () => { logoBox.style.display = 'none'; };
+            logoImg.onload  = () => { logoBox.style.display = 'flex'; };
+            logoBox.style.display = 'flex';
+        } else {
+            logoBox.style.display = 'none';
+        }
+    }
+
+    function buildDots() {
+        const container = document.getElementById('dots');
+        // Only show dots if 20 or fewer winners (beyond that, just show counter)
+        if (winners.length > 20) { container.innerHTML = ''; return; }
+        container.innerHTML = winners.map((_, i) =>
+            `<div class="dot${i === currentIndex ? ' active' : ''}"></div>`
+        ).join('');
+    }
+
+    // ── Progress bar ──
+    function startProgress() {
+        clearInterval(progressInterval);
+        clearTimeout(progressTimer);
+
+        const bar = document.getElementById('progress-bar');
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+
+        // Force reflow so the transition resets
+        void bar.offsetWidth;
+
+        bar.style.transition = `width ${ROTATION_SPEED_MS}ms linear`;
+        bar.style.width = '100%';
+
+        progressTimer = setTimeout(() => {
+            if (winners.length > 1) {
+                currentIndex = (currentIndex + 1) % winners.length;
+                renderSlide(currentIndex, true);
+            }
+            startProgress();
+        }, ROTATION_SPEED_MS);
+    }
+
+    // ── Bootstrap ──
+    fetchSheetData();
+    setInterval(fetchSheetData, REFRESH_RATE_MS);
+</script>
+
+</body>
+</html>
