@@ -336,12 +336,12 @@
     let isAnimating  = false;
 
     // Convert a Google Drive share link to a direct image URL
+    // Uses the thumbnail endpoint which bypasses Drive's virus-scan redirect page
     function driveToDirectUrl(url) {
         if (!url) return '';
-        // Handle /file/d/ID/view or ?id=ID formats
         let m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
         if (!m) m = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
-        if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+        if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w400`;
         return url; // already a direct URL — return as-is
     }
 
