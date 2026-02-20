@@ -411,7 +411,7 @@
 
         <div id="slideshow-container">
             <div class="winner-card" id="content">
-                <div class="badge">&#127942; &nbsp;Winner Announced!</div>
+                <div class="badge" id="badge-label">&#127942; &nbsp;Winner Announced!</div>
 
                 <h1 id="winner-name">---</h1>
                 <p class="ticket-row">Winning Ticket: <span id="ticket-num">---</span></p>
@@ -537,17 +537,18 @@
                 const ticket = cols[4] || '';
                 const winnerCell = cols[5] || '';
 
-                // Only show rows where col F is filled in AND is not "Unclaimed"
-                const isWinner = winnerCell !== '' && winnerCell.toLowerCase() !== 'unclaimed';
                 const hasTicket = ticket !== '';
+                const isClaimed = winnerCell !== '' && winnerCell.toLowerCase() !== 'unclaimed';
 
-                if (isWinner && hasTicket) {
+                // Show the entry if a ticket number has been drawn (Column E filled)
+                if (hasTicket) {
                     found.push({
-                        winner: winnerCell,
+                        winner: isClaimed ? winnerCell : '',
                         ticket,
                         prize,
                         donor,
-                        logo: driveToDirectUrl(logoRaw)
+                        logo: driveToDirectUrl(logoRaw),
+                        unclaimed: !isClaimed   // true = ticket drawn but not yet claimed
                     });
                 }
             }
@@ -609,8 +610,23 @@
         }
 
         function fillSlide(d) {
-            document.getElementById('winner-name').textContent = d.winner;
-            document.getElementById('ticket-num').textContent = d.ticket;
+            const badge = document.getElementById('badge-label');
+            const nameEl = document.getElementById('winner-name');
+            const ticketRow = document.querySelector('.ticket-row');
+
+            if (d.unclaimed) {
+                // State 1: Ticket drawn, winner hasn't claimed yet
+                badge.innerHTML = '&#127915; &nbsp;Winning Ticket Drawn!';
+                nameEl.textContent = d.ticket;       // show ticket # as the big headline
+                ticketRow.style.display = 'none';     // hide the small ticket row (redundant)
+            } else {
+                // State 2: Winner has claimed — show their name
+                badge.innerHTML = '&#127942; &nbsp;Winner Announced!';
+                nameEl.textContent = d.winner;        // show winner name as the big headline
+                document.getElementById('ticket-num').textContent = d.ticket;
+                ticketRow.style.display = '';          // show the ticket row
+            }
+
             document.getElementById('prize-desc').textContent = d.prize;
             document.getElementById('donor-name').textContent = d.donor;
 
